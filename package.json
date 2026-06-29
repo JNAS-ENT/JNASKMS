@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/frontend",
+    "dev": "node scripts/start-dev.cjs",
     "build": "npm run build --workspace=apps/frontend && mkdir -p dist && cp -r apps/frontend/dist/* dist/",
     "preview": "npm run preview --workspace=apps/frontend",
     "clean": "rm -rf dist apps/frontend/dist apps/backend/dist packages/*/dist",
