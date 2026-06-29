@@ -1,0 +1,6 @@
+{
+  "name": "Enterprise Workspace Node",
+  "description": "Enterprise command center for technical plans, research documents, transcripts summaries, and project boards with local cache tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
