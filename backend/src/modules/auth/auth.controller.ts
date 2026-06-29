@@ -7,13 +7,18 @@ import {
   HttpStatus,
   Req,
   UseGuards,
-  Headers,
+  Query,
+  Param,
+  Delete,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -69,6 +74,67 @@ export class AuthController {
   async logout(@Body() refreshDto: RefreshTokenDto) {
     await this.authService.logout(refreshDto.refreshToken);
     return { message: 'Successfully logged out' };
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset token via email dispatch' })
+  @ApiResponse({ status: 200 })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset account password with token' })
+  @ApiResponse({ status: 200 })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change current logged in user password' })
+  @ApiResponse({ status: 200 })
+  async changePassword(
+    @CurrentUser() currentUser: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(currentUser.sub, changePasswordDto);
+  }
+
+  @Public()
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify account email address via query token' })
+  @ApiResponse({ status: 200 })
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Get('sessions')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get list of active sessions for logged in user' })
+  @ApiResponse({ status: 200 })
+  async getMySessions(@CurrentUser() currentUser: any) {
+    return this.authService.getUserSessions(currentUser.sub);
+  }
+
+  @Delete('sessions/:id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke/Delete an active session' })
+  @ApiResponse({ status: 200 })
+  async revokeSession(
+    @CurrentUser() currentUser: any,
+    @Param('id') id: string,
+  ) {
+    return this.authService.revokeSession(currentUser.sub, id);
   }
 
   @Get('me')

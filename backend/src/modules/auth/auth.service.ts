@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
@@ -10,8 +11,12 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthProvider } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -32,6 +37,15 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
+    if (dto.username) {
+      const existingUsername = await this.prisma.user.findUnique({
+        where: { username: dto.username },
+      });
+      if (existingUsername) {
+        throw new ConflictException('User with this username already exists');
+      }
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     // Get or lazily create USER role
@@ -48,11 +62,16 @@ export class AuthService {
       });
     }
 
+    // Generate random email verification token
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         passwordHash,
         fullName: dto.fullName,
+        username: dto.username || null,
+        emailVerificationToken,
         provider: AuthProvider.LOCAL,
         roleId: role.id,
       },
@@ -68,6 +87,9 @@ export class AuthService {
         },
       },
     });
+
+    // Abstract Email Provider simulation
+    console.log(`[EMAIL DISPATCH] Verification email sent to ${user.email} with token: ${emailVerificationToken}`);
 
     const permissions = user.role.permissions.map((p) => p.permission.name);
     const tokens = await this.generateTokens(user.id, user.email, user.role.name, permissions);
@@ -105,17 +127,26 @@ export class AuthService {
     });
 
     if (!user || !user.passwordHash) {
+      await this.logActivity(null, 'auth.login_failed', { email: dto.email, reason: 'Invalid credentials' });
       throw new UnauthorizedException('Invalid email or password');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
+      await this.logActivity(user.id, 'auth.login_failed', { email: dto.email, reason: 'Password mismatch' });
       throw new UnauthorizedException('Invalid email or password');
     }
 
     if (user.status === 'SUSPENDED') {
+      await this.logActivity(user.id, 'auth.login_failed', { email: dto.email, reason: 'Suspended account' });
       throw new UnauthorizedException('Your account has been suspended');
     }
+
+    // Update last login
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
 
     const permissions = user.role.permissions.map((p) => p.permission.name);
     const tokens = await this.generateTokens(user.id, user.email, user.role.name, permissions);
@@ -167,7 +198,7 @@ export class AuthService {
     const permissions = user.role.permissions.map((p) => p.permission.name);
     const tokens = await this.generateTokens(user.id, user.email, user.role.name, permissions);
 
-    // Update session token or reuse
+    // Update session token or reuse (Token Rotation)
     await this.prisma.session.update({
       where: { id: session.id },
       data: {
@@ -190,6 +221,143 @@ export class AuthService {
       await this.prisma.session.delete({ where: { id: session.id } });
       await this.logActivity(session.userId, 'auth.logout');
     }
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      // Return success message even if email wasn't found for security reasons
+      return { message: 'If this email is registered, a password reset link has been dispatched' };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: expires,
+      },
+    });
+
+    // Abstract Email Provider simulation
+    console.log(`[EMAIL DISPATCH] Password reset instructions dispatched to ${user.email} with token: ${token}`);
+    await this.logActivity(user.id, 'auth.forgot_password_requested');
+
+    return { message: 'If this email is registered, a password reset link has been dispatched' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: dto.token,
+        passwordResetExpires: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    await this.logActivity(user.id, 'auth.password_reset_success');
+
+    return { message: 'Your password has been reset successfully' };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.passwordHash) {
+      throw new BadRequestException('User has no local password hash configured');
+    }
+
+    const isMatch = await bcrypt.compare(dto.oldPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('Incorrect current password');
+    }
+
+    const newHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
+    });
+
+    await this.logActivity(user.id, 'auth.change_password_success');
+
+    return { message: 'Password updated successfully' };
+  }
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: { emailVerificationToken: token },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+      },
+    });
+
+    await this.logActivity(user.id, 'auth.email_verified');
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async getUserSessions(userId: string) {
+    return this.prisma.session.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        device: true,
+        ip: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<{ success: boolean }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session || session.userId !== userId) {
+      throw new NotFoundException('Session not found or permission denied');
+    }
+
+    await this.prisma.session.delete({
+      where: { id: sessionId },
+    });
+
+    await this.logActivity(userId, 'auth.session_revoked', { sessionId });
+
+    return { success: true };
   }
 
   async googleAuth(googleProfile: {
@@ -235,6 +403,28 @@ export class AuthService {
           provider: AuthProvider.GOOGLE,
           providerId: googleProfile.googleId,
           roleId: role.id,
+          isEmailVerified: true, // Google accounts are pre-verified
+        },
+        include: {
+          role: {
+            include: {
+              permissions: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    } else if (user.provider === AuthProvider.LOCAL) {
+      // Account Linking: Link existing local account to Google provider safely
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          provider: AuthProvider.GOOGLE,
+          providerId: googleProfile.googleId,
+          isEmailVerified: true,
         },
         include: {
           role: {
@@ -253,6 +443,12 @@ export class AuthService {
     if (user.status === 'SUSPENDED') {
       throw new UnauthorizedException('Your account has been suspended');
     }
+
+    // Update last login
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
 
     const permissions = user.role.permissions.map((p) => p.permission.name);
     const tokens = await this.generateTokens(user.id, user.email, user.role.name, permissions);
@@ -280,7 +476,7 @@ export class AuthService {
     permissions: string[],
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = { sub: userId, email, role, permissions };
-    
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.jwtSecret,
@@ -313,17 +509,16 @@ export class AuthService {
     });
   }
 
-  private async logActivity(userId: string, action: string, details?: any): Promise<void> {
+  private async logActivity(userId: string | null, action: string, details?: any): Promise<void> {
     try {
       await this.prisma.activityLog.create({
         data: {
-          userId,
+          userId: userId || undefined,
           action,
           details: details ? JSON.parse(JSON.stringify(details)) : undefined,
         },
       });
     } catch (e) {
-      // Gracefully capture/ignore logging issues to not disrupt core auth flow
       console.error('Failed to log activity:', e);
     }
   }

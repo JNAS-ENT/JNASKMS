@@ -19,19 +19,29 @@ enum AuthProvider {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String?
-  fullName     String
-  avatarUrl    String?
-  provider     AuthProvider  @default(LOCAL)
-  providerId   String?       @unique
-  status       UserStatus    @default(ACTIVE)
-  roleId       String
-  role         Role          @relation(fields: [roleId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?     // For soft delete
+  id                     String        @id @default(uuid())
+  email                  String        @unique
+  passwordHash           String?
+  fullName               String
+  username               String?       @unique
+  avatarUrl              String?
+  bio                    String?
+  timeZone               String        @default("UTC")
+  language               String        @default("en")
+  themePreference        String        @default("light")
+  lastLogin              DateTime?
+  isEmailVerified        Boolean       @default(false)
+  emailVerificationToken String?
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
+  provider               AuthProvider  @default(LOCAL)
+  providerId             String?       @unique
+  status                 UserStatus    @default(ACTIVE)
+  roleId                 String
+  role                   Role          @relation(fields: [roleId], references: [id])
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  deletedAt              DateTime?     // For soft delete
 
   sessions     Session[]
   activityLogs ActivityLog[]

@@ -39,10 +39,15 @@ export class UsersController {
     @CurrentUser() currentUser: any,
     @Body() updateDto: UpdateUserDto,
   ) {
-    // Standard users can only update standard profile fields (name, avatar)
+    // Standard users can only update standard profile fields
     const selfUpdateDto: UpdateUserDto = {
       fullName: updateDto.fullName,
+      username: updateDto.username,
       avatarUrl: updateDto.avatarUrl,
+      bio: updateDto.bio,
+      timeZone: updateDto.timeZone,
+      language: updateDto.language,
+      themePreference: updateDto.themePreference,
     };
     return this.usersService.updateProfile(currentUser.sub, selfUpdateDto);
   }

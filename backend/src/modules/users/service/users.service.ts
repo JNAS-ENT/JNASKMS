@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { UsersRepository } from '../repository/users.repository';
 import { PrismaService } from '../../../database/prisma.service';
 import { UserQueryDto } from '../dto/user-query.dto';
@@ -25,8 +25,16 @@ export class UsersService {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
+      username: user.username,
       avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      timeZone: user.timeZone,
+      language: user.language,
+      themePreference: user.themePreference,
       status: user.status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      lastLogin: user.lastLogin,
       role: {
         id: (user as any).role.id,
         name: (user as any).role.name,
@@ -48,12 +56,28 @@ export class UsersService {
   }
 
   async updateProfile(id: string, updateDto: UpdateUserDto) {
-    // Basic verification
     const user = await this.findOne(id);
 
     const updateData: any = {};
     if (updateDto.fullName !== undefined) updateData.fullName = updateDto.fullName;
     if (updateDto.avatarUrl !== undefined) updateData.avatarUrl = updateDto.avatarUrl;
+    if (updateDto.bio !== undefined) updateData.bio = updateDto.bio;
+    if (updateDto.timeZone !== undefined) updateData.timeZone = updateDto.timeZone;
+    if (updateDto.language !== undefined) updateData.language = updateDto.language;
+    if (updateDto.themePreference !== undefined) updateData.themePreference = updateDto.themePreference;
+
+    if (updateDto.username !== undefined && updateDto.username !== user.username) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          username: updateDto.username,
+          deletedAt: null,
+        },
+      });
+      if (existing) {
+        throw new ConflictException('Username is already taken');
+      }
+      updateData.username = updateDto.username;
+    }
 
     return this.usersRepository.update(id, updateData);
   }
@@ -64,7 +88,24 @@ export class UsersService {
     const updateData: any = {};
     if (updateDto.fullName !== undefined) updateData.fullName = updateDto.fullName;
     if (updateDto.avatarUrl !== undefined) updateData.avatarUrl = updateDto.avatarUrl;
+    if (updateDto.bio !== undefined) updateData.bio = updateDto.bio;
+    if (updateDto.timeZone !== undefined) updateData.timeZone = updateDto.timeZone;
+    if (updateDto.language !== undefined) updateData.language = updateDto.language;
+    if (updateDto.themePreference !== undefined) updateData.themePreference = updateDto.themePreference;
     if (updateDto.status !== undefined) updateData.status = updateDto.status;
+
+    if (updateDto.username !== undefined && updateDto.username !== user.username) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          username: updateDto.username,
+          deletedAt: null,
+        },
+      });
+      if (existing) {
+        throw new ConflictException('Username is already taken');
+      }
+      updateData.username = updateDto.username;
+    }
 
     if (updateDto.roleName) {
       const role = await this.prisma.role.findUnique({
