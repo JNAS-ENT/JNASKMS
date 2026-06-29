@@ -1,6 +1,8 @@
 {
-  "name": "Enterprise Workspace Node",
-  "description": "Enterprise command center for technical plans, research documents, transcripts summaries, and project boards with local cache tracking.",
+  "name": "Remix: Work OS",
+  "description": "An AI-powered work management system that automatically syncs emails, manages tasks, projects, customers, and automations.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
