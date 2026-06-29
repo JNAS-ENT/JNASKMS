@@ -1,0 +1,113 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String?
+  fullName     String
+  avatarUrl    String?
+  provider     AuthProvider  @default(LOCAL)
+  providerId   String?       @unique
+  status       UserStatus    @default(ACTIVE)
+  roleId       String
+  role         Role          @relation(fields: [roleId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?     // For soft delete
+
+  sessions     Session[]
+  activityLogs ActivityLog[]
+  auditLogs    AuditLog[]
+
+  @@index([email])
+  @@index([roleId])
+}
+
+model Role {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  description String?
+  permissions RolesOnPermissions[]
+  users       User[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model Permission {
+  id          String              @id @default(uuid())
+  name        String              @unique // e.g. "users:read", "notes:create"
+  description String?
+  roles       RolesOnPermissions[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model RolesOnPermissions {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  device    String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "auth.login", "note.create"
+  details   Json?    // Contextual metadata
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "DELETE_USER", "UPDATE_ROLE"
+  tableName String
+  recordId  String
+  oldValues Json?
+  newValues Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
