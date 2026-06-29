@@ -1,13 +1,17 @@
 {
-  "name": "react-example",
+  "name": "knowledge-os",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "dev": "npm run dev --workspace=apps/frontend",
+    "build": "npm run build --workspace=apps/frontend",
+    "preview": "npm run preview --workspace=apps/frontend",
+    "clean": "rm -rf dist apps/frontend/dist apps/backend/dist packages/*/dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

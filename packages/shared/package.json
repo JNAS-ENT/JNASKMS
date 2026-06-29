@@ -1,0 +1,17 @@
+{
+  "name": "@knowledge-os/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@knowledge-os/types": "*",
+    "@knowledge-os/utils": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}

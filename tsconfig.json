@@ -17,10 +17,23 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./*"
+        "./apps/frontend/src/*"
+      ],
+      "@knowledge-os/types": [
+        "./packages/types/src/index.ts"
+      ],
+      "@knowledge-os/utils": [
+        "./packages/utils/src/index.ts"
+      ],
+      "@knowledge-os/ui": [
+        "./packages/ui/src/index.tsx"
+      ],
+      "@knowledge-os/shared": [
+        "./packages/shared/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": ["node_modules", "dist"]
 }
