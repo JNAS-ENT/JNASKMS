@@ -3,6 +3,7 @@ import { MetricCard } from './MetricCard';
 import { ActivityLog } from './ActivityLog';
 import { FileText, BookOpen, Youtube, PenTool, CheckCircle, Award, Terminal, ArrowRight } from 'lucide-react';
 import { useEnterpriseStore } from '../../../store';
+import { EnterpriseSystemStatus } from './EnterpriseSystemStatus';
 
 export function DashboardOverview() {
   const { metrics, activities, isLoading, refreshDashboard } = useDashboardData();
@@ -140,24 +141,8 @@ export function DashboardOverview() {
             </div>
           </div>
 
-          {/* Quick System Diagnostics */}
-          <div className="bg-card text-card-foreground border border-border rounded-xl p-6 space-y-3">
-            <h3 className="text-sm font-bold font-mono tracking-wider uppercase text-muted-foreground">Workstation Diagnostics</h3>
-            <div className="space-y-2 text-xs font-mono">
-              <div className="flex justify-between">
-                <span>API Endpoint:</span>
-                <span className="text-muted-foreground">https://api.workstation.internal</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Model Server:</span>
-                <span className="text-blue-500 font-semibold">gemini-2.5-flash</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Memory Cache:</span>
-                <span className="text-emerald-500">Active (L2)</span>
-              </div>
-            </div>
-          </div>
+          {/* Enterprise System Status */}
+          <EnterpriseSystemStatus />
         </div>
       </div>
     </div>

@@ -1,17 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { DatabaseModule } from './database/database.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
+import { SystemModule } from './system/system.module';
+import { AiModule } from './ai/ai.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
+import { ExecutionModule } from './execution/execution.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    DatabaseModule,
-    AuthModule,
-    UsersModule,
+    SystemModule,
+    AiModule,
+    KnowledgeModule,
+    ExecutionModule,
   ],
 })
 export class AppModule {}

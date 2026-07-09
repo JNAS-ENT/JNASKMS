@@ -194,5 +194,39 @@ export const apiClient = {
       localStorage.setItem('ent_journal', JSON.stringify([newEntry, ...list]));
       return newEntry;
     }
+  },
+
+  // Real System Monitoring API
+  system: {
+    getHealth: async () => {
+      const res = await fetch('/api/system/health');
+      if (!res.ok) throw new Error('Failed to fetch system health');
+      return res.json();
+    },
+    getStatus: async () => {
+      const res = await fetch('/api/system/status');
+      if (!res.ok) throw new Error('Failed to fetch system status');
+      return res.json();
+    },
+    getServices: async () => {
+      const res = await fetch('/api/system/services');
+      if (!res.ok) throw new Error('Failed to fetch services health');
+      return res.json();
+    },
+    getMetrics: async () => {
+      const res = await fetch('/api/system/metrics');
+      if (!res.ok) throw new Error('Failed to fetch system metrics');
+      return res.json();
+    },
+    getLogs: async () => {
+      const res = await fetch('/api/system/logs');
+      if (!res.ok) throw new Error('Failed to fetch system logs');
+      return res.json();
+    },
+    getUptime: async () => {
+      const res = await fetch('/api/system/uptime');
+      if (!res.ok) throw new Error('Failed to fetch system uptime');
+      return res.json();
+    }
   }
 };

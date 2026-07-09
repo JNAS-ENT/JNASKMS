@@ -1,46 +1,40 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { ValidationPipe } from '@nestjs/common';
+import express from 'express';
+import path from 'path';
 
 async function bootstrap() {
-  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
-
+  
   // Enable CORS
   app.enableCors();
 
-  // Prefix APIs globally
+  // Set global API prefix
   app.setGlobalPrefix('api');
 
-  // Register Global Validation Pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  // Use Validation Pipe for DTOs
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Register Global Exception Filter
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : (process.env.NODE_ENV === 'production' ? 3000 : 3001);
 
-  // Setup Swagger Documentation
-  const config = new DocumentBuilder()
-    .setTitle('AI Knowledge OS - Backend')
-    .setDescription('Enterprise NestJS API for AI Knowledge Operating System')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  // Serve frontend static assets in production
+  if (process.env.NODE_ENV === 'production') {
+    const distPath = path.join(__dirname, '../../../dist');
+    app.use(express.static(distPath));
+    
+    // Redirect non-API requests to index.html for SPA fallback
+    app.use((req, res, next) => {
+      if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(distPath, 'index.html'));
+      } else {
+        next();
+      }
+    });
+  }
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
-
-  const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  logger.log(`Server is running on http://localhost:${port}/api`);
-  logger.log(`Swagger documentation is available at http://localhost:${port}/docs`);
+  console.log(`NestJS Backend running on http://0.0.0.0:${port}`);
 }
-
 bootstrap();
